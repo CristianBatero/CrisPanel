@@ -33,8 +33,16 @@ class StorageAdapter {
 class FileStorage extends StorageAdapter {
   constructor() {
     super();
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    // Check if we are in a read-only environment (like Lambda/Netlify) and not using GitHub Storage
+    // If so, we can't create directories, so we skip or use tmp if absolutely necessary.
+    // However, for this use case, we really want GitHub Storage.
+    // We try to create the dir only if we are likely in a writable environment.
+    try {
+        if (!fs.existsSync(DATA_DIR)) {
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+        }
+    } catch (e) {
+        console.warn("Warning: Could not create local data directory. This is expected in serverless environments if GITHUB_TOKEN is missing.", e.message);
     }
   }
 
@@ -42,8 +50,14 @@ class FileStorage extends StorageAdapter {
     const filePath = path.join(DATA_DIR, filename);
     if (!fs.existsSync(filePath)) {
       if (defaultValue !== undefined) {
-        await this.write(filename, defaultValue);
-        return defaultValue;
+        // Try to write default value, but handle error if read-only
+        try {
+            await this.write(filename, defaultValue);
+            return defaultValue;
+        } catch (e) {
+            console.warn(`Could not write default value for ${filename} in FileStorage`, e.message);
+            return defaultValue; // Return default even if we couldn't save it
+        }
       }
       return null;
     }
