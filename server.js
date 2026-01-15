@@ -53,18 +53,19 @@ class FileStorage extends StorageAdapter {
         // Try to write default value, but handle error if read-only
         try {
             await this.write(filename, defaultValue);
-            return defaultValue;
+            return { data: defaultValue, sha: null };
         } catch (e) {
             console.warn(`Could not write default value for ${filename} in FileStorage`, e.message);
-            return defaultValue; // Return default even if we couldn't save it
+            return { data: defaultValue, sha: null }; // Return default even if we couldn't save it
         }
       }
-      return null;
+      return { data: null, sha: null };
     }
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    const json = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return { data: json, sha: null };
   }
 
-  async write(filename, data) {
+  async write(filename, data, sha = null) {
     const filePath = path.join(DATA_DIR, filename);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
   }
