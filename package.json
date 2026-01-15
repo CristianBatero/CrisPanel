@@ -1,0 +1,25 @@
+{
+  "name": "magisvpn-panel",
+  "version": "1.0.0",
+  "description": "Panel web de administración para MagisVPN con API basada en archivos",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "firebase-admin": "^13.6.0",
+    "multer": "^2.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}

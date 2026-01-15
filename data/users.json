@@ -1,0 +1,18 @@
+[
+  {
+    "id": "1768491805605",
+    "username": "prueba",
+    "password": "12345",
+    "role": "user",
+    "status": "active",
+    "lastLogin": null
+  },
+  {
+    "id": "1768491864025",
+    "username": "crisdev",
+    "password": "18235.77",
+    "role": "admin",
+    "status": "active",
+    "lastLogin": null
+  }
+]

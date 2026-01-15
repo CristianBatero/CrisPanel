@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MagisVPN Admin Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <!-- Styles -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="light-theme">
+    <!-- Login View -->
+    <div id="login-view" class="login-container">
+      <div class="login-card">
+        <div class="brand">
+          <i class="fa-solid fa-shield-halved"></i>
+          <h1>MagisVPN</h1>
+        </div>
+        <h2>Acceso Administrativo</h2>
+        <div class="form-group">
+          <label><i class="fa-solid fa-user"></i> Usuario</label>
+          <input id="username" type="text" placeholder="admin" />
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-lock"></i> Contraseña</label>
+          <input id="password" type="password" placeholder="••••••" />
+        </div>
+        <button id="login-btn" class="primary-btn">Iniciar Sesión</button>
+        <div id="login-error" class="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- Admin Panel View -->
+    <div id="panel-view" class="admin-layout hidden">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="brand">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>MagisVPN</span>
+        </div>
+        <nav class="nav-menu">
+          <button class="nav-item active" data-target="dashboard">
+            <i class="fa-solid fa-chart-pie"></i> Dashboard
+          </button>
+          <button class="nav-item" data-target="servers">
+            <i class="fa-solid fa-server"></i> Servidores
+          </button>
+          <button class="nav-item" data-target="users">
+            <i class="fa-solid fa-users"></i> Usuarios
+          </button>
+          <button class="nav-item" data-target="config">
+            <i class="fa-solid fa-gear"></i> Configuración
+          </button>
+          <button class="nav-item" data-target="ads">
+            <i class="fa-solid fa-rectangle-ad"></i> Anuncios
+          </button>
+          <button class="nav-item" data-target="security">
+            <i class="fa-solid fa-shield"></i> Seguridad
+          </button>
+          <button class="nav-item" data-target="plans">
+            <i class="fa-solid fa-crown"></i> Planes
+          </button>
+          <button class="nav-item" data-target="notifications">
+            <i class="fa-solid fa-paper-plane"></i> Notificaciones
+          </button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="user-info">
+            <div class="avatar">A</div>
+            <div class="details">
+              <span class="name">Admin</span>
+              <span class="role">Superuser</span>
+            </div>
+          </div>
+          <button id="logout-btn" class="logout-btn" title="Cerrar sesión">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Header -->
+        <header class="top-bar">
+          <h2 id="page-title">Dashboard</h2>
+          <div class="header-actions">
+            <button id="theme-toggle" class="icon-btn" title="Cambiar tema">
+              <i class="fa-solid fa-moon"></i>
+            </button>
+            <button class="icon-btn notifications">
+              <i class="fa-solid fa-bell"></i>
+              <span class="badge">3</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- Views -->
+        <div id="view-dashboard" class="view-section active">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="icon blue"><i class="fa-solid fa-server"></i></div>
+              <div class="info">
+                <h3>Total Servidores</h3>
+                <span id="stat-total-servers">0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="icon green"><i class="fa-solid fa-users"></i></div>
+              <div class="info">
+                <h3>Usuarios Activos</h3>
+                <span id="stat-active-users">0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="icon purple"><i class="fa-solid fa-code-branch"></i></div>
+              <div class="info">
+                <h3>Versión Config</h3>
+                <span id="stat-version">v1.0</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="icon orange"><i class="fa-solid fa-bolt"></i></div>
+              <div class="info">
+                <h3>Estado Sistema</h3>
+                <span class="status-ok">Operativo</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="charts-grid">
+            <div class="chart-card">
+              <h3>Tráfico de Red (Simulado)</h3>
+              <canvas id="trafficChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <h3>Distribución de Protocolos</h3>
+              <canvas id="protocolsChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-servers" class="view-section hidden">
+          <div class="section-header">
+            <div class="actions-left">
+              <div class="search-box">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="server-search" placeholder="Buscar servidor..." />
+              </div>
+            </div>
+            <button id="btn-add-server" class="primary-btn">
+              <i class="fa-solid fa-plus"></i> Nuevo Servidor
+            </button>
+          </div>
+
+          <div class="content-split">
+            <!-- Server List -->
+            <div class="card list-card">
+              <div class="list-header">
+                <h3>Lista de Servidores <small>(Arrastrar para reordenar)</small></h3>
+              </div>
+              <div id="servers-list" class="sortable-list">
+                <!-- Items injected by JS -->
+              </div>
+            </div>
+
+            <!-- Editor Form (Side Panel style) -->
+            <div id="server-editor" class="card editor-card hidden">
+              <div class="editor-header">
+                <h3 id="editor-title">Editar Servidor</h3>
+                <button id="close-editor" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+              </div>
+              <div class="editor-body">
+                <input type="hidden" id="server-id" />
+                
+                <!-- Common Fields -->
+                <div class="form-section">
+                  <h4>Identidad</h4>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Nombre</label>
+                      <input id="server-name" type="text" />
+                    </div>
+                    <div class="form-group">
+                      <label>Bandera (URL/Emoji)</label>
+                      <input id="server-flag" type="text" />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Grupo / País (Título en la App)</label>
+                    <input id="server-group" type="text" placeholder="Ej: Brasil, Colombia, Premium..." />
+                  </div>
+                  <div class="form-group">
+                    <label>Info (Etiqueta)</label>
+                    <input id="server-info" type="text" />
+                  </div>
+                </div>
+
+                <!-- Protocol Selector -->
+                <div class="form-section">
+                  <h4>Configuración de Conexión</h4>
+                  <div class="form-group">
+                    <label>Protocolo</label>
+                    <select id="server-method" class="full-width">
+                      <option value="sshssl">SSH/SSL</option>
+                      <option value="sslpay">SSL/PAYLOAD</option>
+                      <option value="direct">DIRECT</option>
+                      <option value="sshproxy">SSH/PROXY</option>
+                      <option value="slowdns">SLOW DNS</option>
+                      <option value="udp">UDP</option>
+                      <option value="v2ray">v2ray</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Dynamic Fields Container -->
+                  <div id="dynamic-fields">
+                    <!-- Host/Port Group -->
+                    <div class="form-row" id="group-host">
+                      <div class="form-group">
+                        <label>Host / IP</label>
+                        <input id="server-host" type="text" />
+                      </div>
+                      <div class="form-group" id="group-port">
+                        <label>Puerto</label>
+                        <input id="server-port" type="number" />
+                      </div>
+                      <div class="form-group" id="group-ssl">
+                        <label>SSL Port</label>
+                        <input id="server-sslport" type="number" />
+                      </div>
+                    </div>
+
+                    <!-- Proxy Group -->
+                    <div class="form-row" id="group-proxy">
+                      <div class="form-group">
+                        <label>Proxy Host</label>
+                        <input id="server-proxy-host" type="text" />
+                      </div>
+                      <div class="form-group">
+                        <label>Proxy Port</label>
+                        <input id="server-proxy-port" type="number" />
+                      </div>
+                    </div>
+
+                    <!-- Auth Group -->
+                    <div class="form-row" id="group-userpass">
+                      <div class="form-group">
+                        <label>Usuario SSH</label>
+                        <input id="server-username" type="text" />
+                      </div>
+                      <div class="form-group">
+                        <label>Pass SSH</label>
+                        <input id="server-password" type="text" />
+                      </div>
+                    </div>
+
+                    <!-- Payload/SNI -->
+                    <div class="form-group" id="group-payload">
+                      <label>Payload</label>
+                      <textarea id="server-payload" rows="2"></textarea>
+                    </div>
+                    <div class="form-group" id="group-sni">
+                      <label>SNI</label>
+                      <input id="server-sni" type="text" />
+                    </div>
+
+                    <!-- Other Groups (SlowDNS, UDP, V2Ray) -->
+                    <div id="group-slowdns">
+                      <div class="form-group"><label>Key</label><input id="server-slowkey" type="text" /></div>
+                      <div class="form-group"><label>DNS</label><input id="server-slowdns" type="text" /></div>
+                      <div class="form-group"><label>NS</label><input id="server-slownameserver" type="text" /></div>
+                    </div>
+
+                    <div id="group-udp">
+                      <div class="form-row">
+                        <div class="form-group"><label>Buffer</label><input id="server-udpbuffer" type="text" /></div>
+                        <div class="form-group"><label>Up</label><input id="server-udpup" type="text" /></div>
+                        <div class="form-group"><label>Down</label><input id="server-udpdown" type="text" /></div>
+                      </div>
+                    </div>
+
+                    <div id="group-v2ray">
+                      <div class="form-group"><label>Config/UUID</label><input id="server-v2ray" type="text" /></div>
+                      <div class="form-group"><label>API Token</label><input id="server-apitoken" type="text" /></div>
+                      <div class="form-group"><label>Check User</label><input id="server-apicheckuser" type="text" /></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Flags -->
+                <div class="form-section">
+                  <h4>Opciones</h4>
+                  <div class="checkbox-group">
+                    <label class="checkbox-container">
+                      <input id="server-solodatos" type="checkbox" />
+                      <span class="checkmark"></span>
+                      Solo Datos
+                    </label>
+                    <label class="checkbox-container">
+                      <input id="server-premium" type="checkbox" />
+                      <span class="checkmark"></span>
+                      Premium
+                    </label>
+                  </div>
+                </div>
+
+                <div class="editor-actions">
+                  <button id="save-server-btn" class="primary-btn full-width">Guardar Cambios</button>
+                  <button id="delete-server-btn" class="danger-btn full-width hidden">Eliminar Servidor</button>
+                </div>
+                <div id="form-error" class="error-msg"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="view-users" class="view-section hidden">
+          <div class="card">
+            <div class="section-header">
+              <h3>Gestión de Usuarios</h3>
+              <button id="btn-add-user" class="primary-btn"><i class="fa-solid fa-user-plus"></i> Nuevo Usuario Panel</button>
+            </div>
+            <p class="text-muted" style="margin-bottom: 0.75rem;">Los usuarios de Google/Firebase aparecerán automáticamente como solo lectura.</p>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Usuario</th>
+                  <th>Origen</th>
+                  <th>Rol</th>
+                  <th>Estado</th>
+                  <th>Último Acceso</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="view-config" class="view-section hidden">
+          <!-- Firebase Connection Card -->
+          <div class="card config-card" style="margin-bottom: 20px;">
+            <h3>Conexión Firebase (Service Account)</h3>
+            <p class="text-muted">Sube el archivo JSON de la cuenta de servicio de Firebase para habilitar las notificaciones y seguridad.</p>
+            <div id="config-firebase-status" class="alert-banner warning" style="margin-bottom: 10px;">
+              <i class="fa-solid fa-triangle-exclamation"></i> No conectado
+            </div>
+            <div class="form-group">
+              <label>Archivo service-account.json</label>
+              <input type="file" id="firebase-file" accept=".json" />
+            </div>
+            <button id="btn-upload-firebase" class="primary-btn">Subir y Conectar</button>
+          </div>
+
+          <div class="card config-card">
+            <h3>Configuración General de la App</h3>
+            <div class="form-group">
+              <label>Versión del Config</label>
+              <input id="config-version" type="text" />
+            </div>
+            <div class="form-group">
+              <label>Contraseña Global (Encrypt)</label>
+              <input id="config-password" type="text" />
+            </div>
+            <div class="form-group">
+              <label>API Key (Seguridad Conexión)</label>
+              <div class="input-group">
+                <input id="config-apikey" type="text" readonly />
+                <button id="btn-gen-key" class="secondary-btn" title="Generar Nueva Key"><i class="fa-solid fa-rotate"></i></button>
+                <button id="btn-copy-key" class="secondary-btn" title="Copiar"><i class="fa-solid fa-copy"></i></button>
+              </div>
+              <small class="text-muted">Esta llave debe configurarse en tu App para descargar los servidores.</small>
+            </div>
+            <div class="form-group">
+              <label>Notas de Actualización</label>
+              <textarea id="config-notes" rows="5"></textarea>
+            </div>
+            <button id="save-meta-btn" class="primary-btn">Guardar Configuración</button>
+            <div id="meta-error" class="error-msg"></div>
+          </div>
+        </div>
+
+        <div id="view-ads" class="view-section hidden">
+          <div class="card">
+            <h3>Gestión de Anuncios (AdMob)</h3>
+            <p class="text-muted">Configura los IDs de los bloques de anuncios para la aplicación.</p>
+            
+            <div class="form-group">
+              <label>Banner IDs (Uno por línea)</label>
+              <textarea id="ads-banner" rows="3" placeholder="ca-app-pub-xxx/yyy"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label>Interstitial IDs (Uno por línea)</label>
+              <textarea id="ads-interstitial" rows="3" placeholder="ca-app-pub-xxx/yyy"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label>Rewarded IDs (Uno por línea)</label>
+              <textarea id="ads-rewarded" rows="3" placeholder="ca-app-pub-xxx/yyy"></textarea>
+            </div>
+            
+            <div class="form-group">
+              <label>App Open IDs (Uno por línea)</label>
+              <textarea id="ads-appopen" rows="3" placeholder="ca-app-pub-xxx/yyy"></textarea>
+            </div>
+
+            <button id="save-ads-btn" class="primary-btn">Guardar Anuncios</button>
+            <div id="ads-error" class="error-msg"></div>
+          </div>
+        </div>
+
+        <div id="view-plans" class="view-section hidden">
+          <div class="card">
+            <div class="section-header">
+              <h3>Planes Premium y Medios de Pago</h3>
+              <button id="btn-add-plan" class="primary-btn"><i class="fa-solid fa-plus"></i> Nuevo Plan</button>
+            </div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Sin Anuncios</th>
+                  <th>Catálogo Premium</th>
+                  <th>Precio</th>
+                  <th>Duración</th>
+                  <th>Activo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="plans-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="view-security" class="view-section hidden">
+          <div class="card">
+            <h3>Seguridad y Control Remoto</h3>
+            <p class="text-muted">Parámetros de seguridad que la App verificará al iniciar.</p>
+            
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>App Version (Code)</label>
+                <input id="rc-app-version" type="number" placeholder="16" />
+              </div>
+              <div class="form-group">
+                <label>Forzar Actualización</label>
+                <select id="rc-force-update">
+                  <option value="false">No</option>
+                  <option value="true">Sí</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>URL de Actualización</label>
+              <input id="rc-update-url" type="text" placeholder="https://..." />
+            </div>
+
+            <h4>Seguridad Anti-Hack</h4>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Bloquear Anuncios (DNS)</label>
+                <select id="rc-block-ads">
+                  <option value="false">Desactivado</option>
+                  <option value="true">Activado</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Verificar Firma (Anti-Mod)</label>
+                <select id="rc-check-signature">
+                  <option value="true">Activado</option>
+                  <option value="false">Desactivado</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label>Paquetes Permitidos (Separados por coma)</label>
+              <input id="rc-allowed-packages" type="text" placeholder="com.elcris.gen, com.magisvpn.app" />
+            </div>
+            
+            <div class="form-group">
+              <label>Apps Prohibidas (Sniffers/Tools)</label>
+              <textarea id="rc-blacklisted-apps" rows="3" placeholder="com.httcanary, com.guoshi.httpcanary"></textarea>
+            </div>
+
+            <button id="btn-save-remote" class="primary-btn">Publicar Cambios</button>
+          </div>
+        </div>
+
+        <div id="view-notifications" class="view-section hidden">
+          <div class="card">
+            <h3>Enviar Notificación Push</h3>
+            <p class="text-muted">Envía alertas visuales a los usuarios de la App.</p>
+            
+            <div class="form-group">
+              <label>Título</label>
+              <input id="notify-title" type="text" placeholder="Nueva actualización disponible" />
+            </div>
+            
+            <div class="form-group">
+              <label>Mensaje</label>
+              <textarea id="notify-body" rows="3" placeholder="Actualiza ahora para disfrutar de nuevos servidores..."></textarea>
+            </div>
+
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Icono Grande (URL)</label>
+                <input id="notify-large-icon" type="text" placeholder="https://.../icon.png" />
+              </div>
+              <div class="form-group">
+                <label>Portada / Imagen (URL)</label>
+                <input id="notify-image" type="text" placeholder="https://.../banner.jpg" />
+              </div>
+            </div>
+            
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Destino</label>
+                <select id="notify-target-type">
+                  <option value="topic">Tema (Topic)</option>
+                  <option value="token">Token Específico</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Valor (ej. 'all')</label>
+                <input id="notify-target-value" type="text" value="all" />
+              </div>
+            </div>
+
+            <button id="btn-send-notify" class="primary-btn"><i class="fa-solid fa-paper-plane"></i> Enviar Notificación</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- User Modal -->
+    <div id="user-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Usuario</h3>
+          <button class="close-modal"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="user-id" />
+          <div class="form-group">
+            <label>Nombre de Usuario</label>
+            <input id="user-username" type="text" />
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input id="user-password" type="text" />
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="user-role">
+              <option value="user">Usuario</option>
+              <option value="admin">Administrador</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select id="user-status">
+              <option value="active">Activo</option>
+              <option value="inactive">Inactivo</option>
+            </select>
+          </div>
+          <div id="user-error" class="error-msg"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="save-user-btn" class="primary-btn">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plan Modal -->
+    <div id="plan-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Plan Premium</h3>
+          <button class="close-modal plan-close"><i class="fa-solid fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nombre del Plan</label>
+            <input id="plan-name" type="text" placeholder="Premium Sin Anuncios" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Precio</label>
+              <input id="plan-price" type="number" step="0.01" placeholder="4.99" />
+            </div>
+            <div class="form-group">
+              <label>Moneda</label>
+              <input id="plan-currency" type="text" value="USD" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Duración (días)</label>
+            <input id="plan-duration" type="number" value="30" />
+          </div>
+          <div class="form-group">
+            <label>Descripción</label>
+            <textarea id="plan-description" rows="2" placeholder="Sin anuncios, servidores premium, catálogo exclusivo..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Opciones del Plan</label>
+              <div class="checkbox-group">
+                <label class="checkbox-container">
+                  <input id="plan-block-ads" type="checkbox" />
+                  <span class="checkmark"></span>
+                  Sin anuncios
+                </label>
+                <label class="checkbox-container">
+                  <input id="plan-premium-catalog" type="checkbox" />
+                  <span class="checkmark"></span>
+                  Catálogo premium
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Características (una por línea)</label>
+            <textarea id="plan-features" rows="3" placeholder="Sin anuncios&#10;Servidores premium&#10;Catálogo exclusivo"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Medios de Pago (Stripe, PayPal, MercadoPago, etc.)</label>
+            <textarea id="plan-payments" rows="3" placeholder="Stripe: product_id_xxx&#10;PayPal: link de pago&#10;MercadoPago: preference_id_xxx"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Activo</label>
+            <select id="plan-active">
+              <option value="true">Sí</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div id="plan-error" class="error-msg"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-save-plan" class="primary-btn">Guardar Plan</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
