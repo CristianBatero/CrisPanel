@@ -11,7 +11,7 @@ beforeAll(() => {
 });
 
 afterAll((done) => {
-  if (server) {
+  if (server && server.listening) {
     server.close(done);
   } else {
     done();
@@ -24,4 +24,3 @@ describe("Admin API auth", () => {
     expect(res.status).toBe(400);
   });
 });
-

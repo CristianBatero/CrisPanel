@@ -141,36 +141,36 @@ const storage = process.env.GITHUB_TOKEN ? new GitHubStorage() : new FileStorage
 // --- Firebase Init ---
 let firebaseApp = null;
 
-function initFirebase() {
-  if (firebaseApp) return;
+async function ensureFirebase() {
+  if (firebaseApp) return firebaseApp;
 
-  // Priority: Env Var (Base64) -> File
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
-      const creds = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString('utf8'));
+      const creds = JSON.parse(
+        Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, "base64").toString("utf8")
+      );
       firebaseApp = admin.initializeApp({ credential: admin.credential.cert(creds) });
       console.log("Firebase initialized from Env");
-      return;
+      return firebaseApp;
     } catch (e) {
       console.error("Error init Firebase from Env:", e.message);
     }
   }
 
-  const FIREBASE_CRED_FILE = path.join(DATA_DIR, "service-account.json");
-  if (fs.existsSync(FIREBASE_CRED_FILE)) {
-    try {
-      const serviceAccount = require(FIREBASE_CRED_FILE);
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-      console.log("Firebase initialized from File");
-    } catch (error) {
-      console.error("Error initializing Firebase from File:", error.message);
+  try {
+    const { data: creds } = await storage.read("service-account.json", null);
+    if (creds) {
+      firebaseApp = admin.initializeApp({ credential: admin.credential.cert(creds) });
+      console.log("Firebase initialized from Storage");
+    } else {
+      console.warn("Firebase service-account.json not found in storage");
     }
+  } catch (e) {
+    console.error("Error init Firebase from Storage:", e.message);
   }
-}
 
-initFirebase();
+  return firebaseApp;
+}
 
 // --- Middleware & Config ---
 app.use(cors());
@@ -433,12 +433,14 @@ app.post("/api/firebase/setup", authMiddleware, upload.single("file"), async (re
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     const content = JSON.parse(req.file.buffer.toString("utf8"));
-    
-    // Save to storage
-    const { sha } = await storage.read("service-account.json", {});
+
+    const { sha } = await storage.read("service-account.json", null);
     await storage.write("service-account.json", content, sha);
-    
-    res.json({ message: "Firebase configurado correctamente. Recarga el panel." });
+
+    firebaseApp = null;
+    await ensureFirebase();
+
+    res.json({ message: "Firebase configurado correctamente." });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -681,10 +683,11 @@ app.delete("/api/plans/:id", authMiddleware, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Firebase Remote Config Wrapper
 app.get("/api/firebase/remote-config", authMiddleware, async (req, res) => {
-  if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
   try {
+    await ensureFirebase();
+    if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
+
     const config = admin.remoteConfig();
     const template = await config.getTemplate();
     const params = {};
@@ -699,8 +702,10 @@ app.get("/api/firebase/remote-config", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/firebase/remote-config", authMiddleware, async (req, res) => {
-  if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
   try {
+    await ensureFirebase();
+    if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
+
     const { parameters } = req.body;
     const rc = admin.remoteConfig();
     const template = await rc.getTemplate();
@@ -713,9 +718,35 @@ app.post("/api/firebase/remote-config", authMiddleware, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get("/api/firebase/users", authMiddleware, async (req, res) => {
-  if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
+app.post("/api/firebase/notify", authMiddleware, async (req, res) => {
   try {
+    await ensureFirebase();
+    if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
+
+    const { title, body, imageUrl, largeIcon, topic, token } = req.body || {};
+    if (!title || !body) return res.status(400).json({ error: "Título y cuerpo requeridos" });
+    if (!topic && !token) return res.status(400).json({ error: "Debe especificar topic o token" });
+
+    const notification = { title, body };
+    if (imageUrl) notification.image = imageUrl;
+
+    const android = { notification: {}, priority: "high" };
+    if (largeIcon) android.notification.icon = largeIcon;
+
+    const message = { notification, android };
+    if (topic) message.topic = topic;
+    else message.token = token;
+
+    const id = await admin.messaging().send(message);
+    res.json({ success: true, id });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/firebase/users", authMiddleware, async (req, res) => {
+  try {
+    await ensureFirebase();
+    if (!firebaseApp) return res.status(503).json({ error: "Firebase no configurado" });
+
     const listUsersResult = await admin.auth().listUsers(1000);
     const users = listUsersResult.users.map(u => ({
       id: u.uid,

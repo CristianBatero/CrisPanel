@@ -114,12 +114,6 @@ body {
   font-weight: 700;
 }
 
-.brand-logo {
-  height: 40px;
-  width: 40px;
-  object-fit: contain;
-}
-
 .login-card h2 { margin-bottom: 1.5rem; color: #111827; }
 
 /* Admin Layout */
