@@ -19,8 +19,8 @@ const DATA_DIR = path.join(__dirname, "data");
 
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
 const ADMIN_PASS = process.env.ADMIN_PASS || "admin123";
-const SESSION_TOKEN = process.env.SESSION_TOKEN || "magisvpn_admin_token";
-const JWT_SECRET = process.env.JWT_SECRET || "magisvpn_jwt_secret";
+const SESSION_TOKEN = process.env.SESSION_TOKEN || "crispanel_admin_token";
+const JWT_SECRET = process.env.JWT_SECRET || "crispanel_jwt_secret";
 const GEN_KEY = process.env.GEN_KEY || "MoraTech.Encrypt";
 
 // --- Storage Adapters ---
@@ -173,7 +173,7 @@ app.use(express.static(path.join(__dirname, "public")));
 const swaggerSpec = swaggerJsdoc({
   definition: {
     openapi: "3.0.0",
-    info: { title: "MagisVPN Admin API", version: "1.0.0" },
+    info: { title: "CrisPanel v1.0 Admin API", version: "1.0.0" },
   },
   apis: [],
 });
@@ -716,7 +716,7 @@ app.get("/api/health", (req, res) => {
 // Only listen if not in Netlify (Lambda)
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`MagisVPN panel escuchando en http://localhost:${PORT}`);
+    console.log(`CrisPanel v1.0 escuchando en http://localhost:${PORT}`);
   });
 }
 

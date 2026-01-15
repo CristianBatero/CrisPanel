@@ -1,7 +1,7 @@
 {
-  "name": "magisvpn-panel",
+  "name": "crispanel",
   "version": "1.0.0",
-  "description": "Panel web de administración para MagisVPN con API basada en archivos",
+  "description": "Panel web de administración para HTTP Conexión y Cris Gen Panel",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

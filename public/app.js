@@ -1,5 +1,5 @@
 const API_BASE = "";
-let authToken = localStorage.getItem("magisvpn_token");
+let authToken = localStorage.getItem("crispanel_token");
 let charts = {};
 
 // --- Utilities ---
@@ -86,7 +86,7 @@ async function handleLogin() {
     });
     
     authToken = data.token;
-    localStorage.setItem("magisvpn_token", authToken);
+    localStorage.setItem("crispanel_token", authToken);
     errorEl.textContent = "";
     
     show("login-view", false);
@@ -99,7 +99,7 @@ async function handleLogin() {
 
 function logout() {
   authToken = null;
-  localStorage.removeItem("magisvpn_token");
+  localStorage.removeItem("crispanel_token");
   show("login-view", true);
   show("panel-view", false);
   // Reset views
@@ -882,7 +882,7 @@ $("save-meta-btn").addEventListener("click", async () => {
 
 $("btn-gen-key").addEventListener("click", () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let key = 'magis_';
+  let key = 'crisdev_';
   for (let i = 0; i < 24; i++) {
     key += chars.charAt(Math.floor(Math.random() * chars.length));
   }
