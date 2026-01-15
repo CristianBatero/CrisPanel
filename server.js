@@ -33,21 +33,29 @@ class StorageAdapter {
 class FileStorage extends StorageAdapter {
   constructor() {
     super();
+    this.baseDir = DATA_DIR;
     // Check if we are in a read-only environment (like Lambda/Netlify) and not using GitHub Storage
-    // If so, we can't create directories, so we skip or use tmp if absolutely necessary.
-    // However, for this use case, we really want GitHub Storage.
-    // We try to create the dir only if we are likely in a writable environment.
     try {
-        if (!fs.existsSync(DATA_DIR)) {
-            fs.mkdirSync(DATA_DIR, { recursive: true });
+        if (!fs.existsSync(this.baseDir)) {
+            fs.mkdirSync(this.baseDir, { recursive: true });
         }
+        // Test write access
+        const testFile = path.join(this.baseDir, ".test");
+        fs.writeFileSync(testFile, "test");
+        fs.unlinkSync(testFile);
     } catch (e) {
-        console.warn("Warning: Could not create local data directory. This is expected in serverless environments if GITHUB_TOKEN is missing.", e.message);
+        console.warn("Warning: Could not write to local data directory. Falling back to /tmp/crispanel_data.", e.message);
+        this.baseDir = path.join(os.tmpdir(), "crispanel_data");
+        try {
+          if (!fs.existsSync(this.baseDir)) fs.mkdirSync(this.baseDir, { recursive: true });
+        } catch (err) {
+          console.error("Critical: Could not create temp data dir", err);
+        }
     }
   }
 
   async read(filename, defaultValue) {
-    const filePath = path.join(DATA_DIR, filename);
+    const filePath = path.join(this.baseDir, filename);
     if (!fs.existsSync(filePath)) {
       if (defaultValue !== undefined) {
         // Try to write default value, but handle error if read-only
@@ -66,7 +74,7 @@ class FileStorage extends StorageAdapter {
   }
 
   async write(filename, data, sha = null) {
-    const filePath = path.join(DATA_DIR, filename);
+    const filePath = path.join(this.baseDir, filename);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
   }
 }
@@ -417,6 +425,24 @@ function jwtAuth(roles = []) {
 }
 
 // --- Endpoints ---
+
+// Upload Service Account
+const upload = multer({ storage: multer.memoryStorage() });
+
+app.post("/api/firebase/setup", authMiddleware, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    const content = JSON.parse(req.file.buffer.toString("utf8"));
+    
+    // Save to storage
+    const { sha } = await storage.read("service-account.json", {});
+    await storage.write("service-account.json", content, sha);
+    
+    res.json({ message: "Firebase configurado correctamente. Recarga el panel." });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // Login Simple
 app.post("/api/login", (req, res) => {
