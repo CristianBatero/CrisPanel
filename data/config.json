@@ -1,25 +1,25 @@
 {
   "Version": "1",
-  "ApiKey": "gen-v16-secret-key",
-  "ReleaseNotes": "",
+  "ApiKey": "crisdev_QUix4KJhiWR1bW5HZSny9Ahq",
+  "ReleaseNotes": "configuracion nueva con seguridad crisdev",
   "Servers": [
     {
       "Name": "prueba",
       "GroupTitle": "global",
       "FLAG": "cris",
-      "ServerIP": "R85wZoAobG5/xLxjnNJYgtm4Pp/mZX5dD66uMLPV6/OkeFXX",
+      "ServerIP": "095xLXoJD8V53BaRRL7+F9To+v3MEe3ljtFCwfTfpnqVmIxs+jY/eYvwyXDu8YWF",
       "ServerPort": "",
       "SSLPort": "443",
       "isPremium": true,
-      "Payload": "c5==bMlbqewD4FhDTJE5d6KkOH1hVoTO3/RHFH7d",
-      "SNI": "oyWzXT7Ic99XrmCbMchgcFMzX75KXlVj5dfNM3/Udx/x8EFlJnwku5661Dz15T3/",
-      "udpBuffer": "Cl==bZ7opsIBa7tzmkBC27cDPQCXLRo0mOK3BkA0",
-      "udpUp": "Fb==F8XZr5DRDjKaVBUujH2Gh9KW+GPKMu2qeEv2",
-      "udpDown": "Br==lp/bQx+rUoH7Ia1YcYDfL7zl+RDwHu6YGoev",
-      "Slowchave": "dD==V+ShMh/y4Nwlm8jWqektSi9WcXE8VQBIwJAk",
-      "Nameserver": "XG==bJyKLLWNQvhBSQweP/Sq8V0qWvPtHPDjngh1",
-      "Slowdns": "ih==bzaaUe+50MMUmnocCDioy42PePMW4giet7g3",
-      "UseTcp": "85==lb3cSHGKHIvOxHgJd44cAwLLduedFu7whBSM",
+      "Payload": "1A==bMt8WCh31YhnveLGnDHDti7d56Tfkk9Ny10r",
+      "SNI": "/sEyS9HfRkkN0aJRmFjnuL4dDOP2jG4XMQ5Qwx43Q1N9jRXG/A12xxvK6SRlCUhm",
+      "udpBuffer": "Xc==V0I8rXR1y7D7cLaiGilFqKaVbwXK4obyGeLw",
+      "udpUp": "6W==biaI3+nPXYGhhl4CiHOMEriaMHYwLCDrIbJa",
+      "udpDown": "bc==VmRzQPrW9qImTGlpbszQJ/9W/6aI2dfrZUSz",
+      "Slowchave": "tN==FYaG6z1A6aeXkr3i1E1W3FsukXNpRDBmksip",
+      "Nameserver": "Fd==b0ARETpVRwmyXEZ2MIlQwEE4NDLpEO3F9fKp",
+      "Slowdns": "by==VHrUpw2L7KnWN1LOW0aSZe1hzyyRxObplIUi",
+      "UseTcp": "1g==VxAahCsM6zWpDaNs3qO9d7xLGyzRmbm5U6D0",
       "isMinfo": "servidor de prueba",
       "apilatamsrcv2ray": "",
       "apiCheckUser": "",
@@ -50,9 +50,20 @@
     }
   ],
   "Ads": {
-    "BannerIds": [],
-    "InterstitialIds": [],
-    "RewardedIds": [],
-    "AppOpenIds": []
-  }
+    "BannerIds": [
+      "ca-app-pub-6741116462771721/5038777445"
+    ],
+    "InterstitialIds": [
+      "ca-app-pub-6741116462771721/1028214397"
+    ],
+    "RewardedIds": [
+      "ca-app-pub-6741116462771721/2579262928",
+      "ca-app-pub-6741116462771721/7402051055",
+      "ca-app-pub-6741116462771721/3462806044"
+    ],
+    "AppOpenIds": [
+      "ca-app-pub-6741116462771721/8678817168"
+    ]
+  },
+  "Password": "@crisdev"
 }

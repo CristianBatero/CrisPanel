@@ -87,6 +87,9 @@ class GitHubStorage extends StorageAdapter {
     this.owner = process.env.GITHUB_OWNER || "CristianBatero"; 
     this.repo = process.env.GITHUB_REPO || "CrisPanel";
     this.branch = process.env.GITHUB_BRANCH || "main";
+    this.cache = {}; // In-memory cache
+    this.cacheTTL = 60 * 1000; // 1 minute cache validity by default
+    
     this.api = axios.create({
       baseURL: `https://api.github.com/repos/${this.owner}/${this.repo}/contents/data`,
       headers: {
@@ -97,43 +100,85 @@ class GitHubStorage extends StorageAdapter {
   }
 
   async read(filename, defaultValue) {
+    // 1. Try Cache first
+    const cached = this.cache[filename];
+    if (cached && (Date.now() - cached.timestamp < this.cacheTTL)) {
+      console.log(`[GitHubStorage] Serving ${filename} from cache`);
+      return { data: cached.data, sha: cached.sha };
+    }
+
     try {
-      // Add timestamp to prevent caching
+      // 2. Fetch from GitHub
+      // Add timestamp to prevent caching from GitHub side (if needed), but we want their latest
       const res = await this.api.get(`/${filename}?ref=${this.branch}&t=${Date.now()}`);
       const content = Buffer.from(res.data.content, "base64").toString("utf8");
-      return { data: JSON.parse(content), sha: res.data.sha };
+      const parsedData = JSON.parse(content);
+      
+      // 3. Update Cache
+      this.cache[filename] = {
+        data: parsedData,
+        sha: res.data.sha,
+        timestamp: Date.now()
+      };
+
+      return { data: parsedData, sha: res.data.sha };
     } catch (e) {
       if (e.response && e.response.status === 404) {
         if (defaultValue !== undefined) {
-          // Create the file
+          // Create the file immediately if it doesn't exist
           await this.write(filename, defaultValue);
-          return { data: defaultValue, sha: null }; // Next write will get SHA or handle conflict
+          return { data: defaultValue, sha: null }; 
         }
         return { data: null, sha: null };
       }
+      
+      // If GitHub fails (rate limit, downtime) and we have STALE cache, return it as fallback
+      if (cached) {
+        console.warn(`[GitHubStorage] GitHub failed for ${filename}, serving STALE cache. Error: ${e.message}`);
+        return { data: cached.data, sha: cached.sha };
+      }
+
       console.error("GitHub Read Error:", e.message);
       throw e;
     }
   }
 
   async write(filename, data, sha = null) {
-    let currentSha = sha;
-    if (!currentSha) {
-      try {
-        const res = await this.api.get(`/${filename}?ref=${this.branch}`);
-        currentSha = res.data.sha;
-      } catch (e) {}
+    try {
+      // Get latest SHA if not provided (to avoid conflict)
+      let currentSha = sha;
+      if (!currentSha) {
+        try {
+          const res = await this.api.get(`/${filename}?ref=${this.branch}`);
+          currentSha = res.data.sha;
+        } catch (e) {
+          // Ignore 404 (creating new file)
+          if (!e.response || e.response.status !== 404) throw e;
+        }
+      }
+
+      const content = Buffer.from(JSON.stringify(data, null, 2)).toString("base64");
+      const body = {
+        message: `Update ${filename} via CrisPanel`,
+        content: content,
+        branch: this.branch,
+      };
+      if (currentSha) body.sha = currentSha;
+
+      const res = await this.api.put(`/${filename}`, body);
+      
+      // Update Cache immediately with the new data and new SHA
+      this.cache[filename] = {
+        data: data,
+        sha: res.data.content.sha,
+        timestamp: Date.now()
+      };
+      
+      return { sha: res.data.content.sha };
+    } catch (e) {
+      console.error("GitHub Write Error:", e.message);
+      throw e;
     }
-
-    const content = Buffer.from(JSON.stringify(data, null, 2)).toString("base64");
-    const body = {
-      message: `Update ${filename} via Panel`,
-      content: content,
-      branch: this.branch,
-    };
-    if (currentSha) body.sha = currentSha;
-
-    await this.api.put(`/${filename}`, body);
   }
 }
 
@@ -906,9 +951,20 @@ app.get("/api/health", (req, res) => {
 
 // Only listen if not in Netlify (Lambda)
 if (require.main === module) {
-  app.listen(PORT, () => {
+  app.listen(PORT, async () => {
     console.log(`CrisPanel v1.0 escuchando en http://localhost:${PORT}`);
+    await ensureFirebase();
   });
 }
+
+// Global Error Handlers to prevent crash
+process.on('uncaughtException', (err) => {
+  console.error('CRITICAL: Uncaught Exception:', err);
+  // Optional: Graceful shutdown or keep running? For this panel, keep running but log hard.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 module.exports = app;
