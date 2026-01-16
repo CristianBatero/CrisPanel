@@ -2,7 +2,6 @@ const API_BASE = "";
 let authToken = localStorage.getItem("crispanel_token");
 let charts = {};
 
-// --- Utilities ---
 const $ = (id) => document.getElementById(id);
 
 function show(id, visible = true) {
@@ -18,6 +17,16 @@ function debounce(fn, delay) {
     clearTimeout(timeout);
     timeout = setTimeout(() => fn.apply(this, args), delay);
   };
+}
+
+function escapeHtml(str) {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 async function apiRequest(path, options = {}) {
@@ -295,21 +304,25 @@ function renderServerList(servers) {
     const item = document.createElement("div");
     item.className = "server-item card-item";
     item.dataset.id = index; // Using index for reordering logic
+    const flag = escapeHtml(s.flag || "🌐");
+    const name = escapeHtml(s.name || "Sin Nombre");
+    const groupBadge = s.groupName ? `<span class="group-badge">${escapeHtml(s.groupName)}</span>` : "";
+    const host = escapeHtml(s.host || "No Host");
     
     item.innerHTML = `
       <div class="drag-handle"><i class="fa-solid fa-grip-vertical"></i></div>
       <div class="server-info-compact">
         <div class="server-main">
-          <span class="flag">${s.flag || '🌐'}</span>
+          <span class="flag">${flag}</span>
           <div class="name-group">
-            <span class="name">${s.name || 'Sin Nombre'}</span>
-            ${s.groupName ? `<span class="group-badge">${s.groupName}</span>` : ''}
+            <span class="name">${name}</span>
+            ${groupBadge}
           </div>
           <span class="tag ${s.isPremium ? 'premium' : 'free'}">${s.isPremium ? 'PREMIUM' : 'FREE'}</span>
         </div>
         <div class="server-meta">
           <span><i class="fa-solid fa-network-wired"></i> ${method}</span>
-          <span><i class="fa-solid fa-server"></i> ${s.host || 'No Host'}</span>
+          <span><i class="fa-solid fa-server"></i> ${host}</span>
         </div>
       </div>
       <div class="server-actions">
@@ -596,17 +609,22 @@ async function loadUsers() {
     
     users.forEach(u => {
       const tr = document.createElement("tr");
+      const username = escapeHtml(u.username || (u.email || "?"));
+      const sourceLabel = escapeHtml(u.source === 'firebase' ? 'Firebase (Google)' : 'Panel');
+      const roleLabel = escapeHtml(u.source === 'firebase' ? 'Firebase' : (u.role || 'user'));
+      const statusLabel = escapeHtml(u.status || 'active');
+      const lastLogin = escapeHtml(u.lastLogin || 'Nunca');
       tr.innerHTML = `
         <td>
           <div class="user-cell">
-            <div class="avatar-sm">${(u.username || (u.email || "?")).charAt(0).toUpperCase()}</div>
-            <span>${u.username || u.email || "Sin nombre"}</span>
+            <div class="avatar-sm">${username.charAt(0).toUpperCase()}</div>
+            <span>${username}</span>
           </div>
         </td>
-        <td>${u.source === 'firebase' ? 'Firebase (Google)' : 'Panel'}</td>
-        <td><span class="badge ${u.source === 'firebase' ? 'admin' : (u.role === 'admin' ? 'admin' : 'user')}">${u.source === 'firebase' ? 'Firebase' : (u.role || 'user')}</span></td>
-        <td><span class="status-dot ${u.status === 'active' ? 'active' : 'inactive'}"></span> ${u.status || 'active'}</td>
-        <td>${u.lastLogin || 'Nunca'}</td>
+        <td>${sourceLabel}</td>
+        <td><span class="badge ${u.source === 'firebase' ? 'admin' : (u.role === 'admin' ? 'admin' : 'user')}">${roleLabel}</span></td>
+        <td><span class="status-dot ${u.status === 'active' ? 'active' : 'inactive'}"></span> ${statusLabel}</td>
+        <td>${lastLogin}</td>
         <td>
           ${u.source === 'firebase' ? '' : `
             <button class="icon-btn edit-user-btn" data-id="${u.id}"><i class="fa-solid fa-pen"></i></button>
@@ -640,10 +658,13 @@ async function loadDevices() {
       const totalHours = typeof d.totalHours === "number" ? d.totalHours.toFixed(2) : "0.00";
       const lastAd = d.lastAdAt ? new Date(d.lastAdAt).toLocaleString() : "Nunca";
       const created = d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "";
+      const deviceId = escapeHtml(d.deviceId);
+      const model = escapeHtml(d.model || "");
+      const appVersion = escapeHtml(d.appVersion || "");
       tr.innerHTML = `
-        <td>${d.deviceId}</td>
-        <td>${d.model || ""}</td>
-        <td>${d.appVersion || ""}</td>
+        <td>${deviceId}</td>
+        <td>${model}</td>
+        <td>${appVersion}</td>
         <td>${totalHours}</td>
         <td>${lastAd}</td>
         <td>${created}</td>
@@ -733,11 +754,13 @@ async function loadPlans() {
     tbody.innerHTML = "";
     plans.forEach(p => {
       const tr = document.createElement("tr");
+      const name = escapeHtml(p.name);
+      const currency = escapeHtml(p.currency);
       tr.innerHTML = `
-        <td>${p.name}</td>
+        <td>${name}</td>
         <td>${p.blockAds ? "Sí" : "No"}</td>
         <td>${p.premiumCatalog ? "Sí" : "No"}</td>
-        <td>${p.price.toFixed(2)} ${p.currency}</td>
+        <td>${p.price.toFixed(2)} ${currency}</td>
         <td>${p.durationDays} días</td>
         <td>${p.isActive ? "Sí" : "No"}</td>
         <td>

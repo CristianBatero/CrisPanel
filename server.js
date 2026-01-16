@@ -319,6 +319,72 @@ function moraDecrypt(str) {
   return step2.split(" ").map((w) => w.split("").reverse().join("")).join(" ");
 }
 
+function getAdeKey() {
+  if (process.env.APP_AES_GCM_KEY) {
+    const raw = Buffer.from(process.env.APP_AES_GCM_KEY, "utf8");
+    if (raw.length >= 16) return raw.slice(0, 16);
+    const padded = Buffer.alloc(16);
+    raw.copy(padded);
+    return padded;
+  }
+  const buf = Buffer.alloc(16);
+  let MDevz;
+  MDevz = 813;
+  buf[0] = (MDevz >>> 3) & 0xff;
+  MDevz = 51278;
+  buf[1] = (MDevz >>> 9) & 0xff;
+  MDevz = -626752;
+  buf[2] = (MDevz >>> 12) & 0xff;
+  MDevz = -4896;
+  buf[3] = (MDevz >>> 5) & 0xff;
+  MDevz = -5144654;
+  buf[4] = (MDevz >>> 15) & 0xff;
+  MDevz = -19791888;
+  buf[5] = (MDevz >>> 17) & 0xff;
+  MDevz = -27656319;
+  buf[6] = (MDevz >>> 17) & 0xff;
+  MDevz = -616562704;
+  buf[7] = (MDevz >>> 22) & 0xff;
+  MDevz = 14223;
+  buf[8] = (MDevz >>> 7) & 0xff;
+  MDevz = 14680099;
+  buf[9] = (MDevz >>> 17) & 0xff;
+  MDevz = 1694;
+  buf[10] = (MDevz >>> 4) & 0xff;
+  MDevz = -4785;
+  buf[11] = (MDevz >>> 5) & 0xff;
+  MDevz = 2046820281;
+  buf[12] = (MDevz >>> 24) & 0xff;
+  MDevz = 121634862;
+  buf[13] = (MDevz >>> 20) & 0xff;
+  MDevz = -54034;
+  buf[14] = (MDevz >>> 8) & 0xff;
+  MDevz = -298;
+  buf[15] = (MDevz >>> 1) & 0xff;
+  return buf;
+}
+
+function aesEncryptSock(plaintext) {
+  const key = getAdeKey();
+  const nonce = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-128-gcm", key, nonce);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([nonce, ciphertext, tag]).toString("base64");
+}
+
+function aesDecryptSock(encryptedText) {
+  const key = getAdeKey();
+  const encryptedMessage = Buffer.from(encryptedText, "base64");
+  const nonce = encryptedMessage.slice(0, 12);
+  const encryptedBytes = encryptedMessage.slice(12);
+  const tag = encryptedBytes.slice(encryptedBytes.length - 16);
+  const ciphertext = encryptedBytes.slice(0, -16);
+  const decipher = crypto.createDecipheriv("aes-128-gcm", key, nonce);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+}
+
 function aesEncryptCompat(plaintext, secretKey) {
   const crypto = require("crypto");
   const key = Buffer.from(secretKey, "utf8");
@@ -346,18 +412,25 @@ function encryptField(plain) {
   const text = plain || "";
   const b33 = base33Encrypt(text);
   const b64 = Buffer.from(b33, "utf8").toString("base64");
-  const aes = aesEncryptCompat(b64, GEN_KEY);
-  return moraEncrypt(aes);
+  return aesEncryptSock(b64);
 }
 
 function decryptField(cipher) {
   if (!cipher) return "";
   try {
-    const aesWrapped = moraDecrypt(cipher);
-    const b64 = aesDecryptCompat(aesWrapped, GEN_KEY);
+    const b64 = aesDecryptSock(cipher);
     const b33 = Buffer.from(b64, "base64").toString("utf8");
     return base33Decrypt(b33);
-  } catch(e) { return ""; }
+  } catch(e) {
+    try {
+      const aesWrapped = moraDecrypt(cipher);
+      const legacyB64 = aesDecryptCompat(aesWrapped, GEN_KEY);
+      const b33 = Buffer.from(legacyB64, "base64").toString("utf8");
+      return base33Decrypt(b33);
+    } catch(err) {
+      return "";
+    }
+  }
 }
 
 // --- Mappers ---
@@ -475,6 +548,7 @@ function authMiddleware(req, res, next) {
   if (parts.length === 2 && parts[0] === "Bearer" && parts[1] === SESSION_TOKEN) {
     return next();
   }
+  console.warn("AuthMiddleware denied access", { ip: req.ip, path: req.path });
   res.status(401).json({ error: "No autorizado" });
 }
 
@@ -483,16 +557,19 @@ function jwtAuth(roles = []) {
     const header = req.headers["authorization"] || "";
     const parts = header.split(" ");
     if (!(parts.length === 2 && parts[0] === "Bearer")) {
+      console.warn("JWT auth missing token", { ip: req.ip, path: req.path });
       return res.status(401).json({ error: "Token requerido" });
     }
     try {
       const decoded = jwt.verify(parts[1], JWT_SECRET);
       if (roles.length && !roles.includes(decoded.role)) {
+        console.warn("JWT auth role denied", { ip: req.ip, path: req.path, role: decoded.role });
         return res.status(403).json({ error: "Acceso denegado" });
       }
       req.user = decoded;
       return next();
     } catch (err) {
+      console.warn("JWT auth invalid token", { ip: req.ip, path: req.path });
       return res.status(401).json({ error: "Token inválido" });
     }
   };
@@ -502,6 +579,7 @@ async function requireApiKey(req, res) {
   const { data: config } = await storage.read("config.json", {});
   const requestKey = req.headers["x-api-key"] || req.query.key;
   if (!config.ApiKey || requestKey !== config.ApiKey) {
+    console.warn("Invalid API key access", { ip: req.ip, path: req.path });
     res.status(403).json({ error: "Acceso denegado: API Key inválida" });
     return null;
   }
@@ -544,6 +622,7 @@ app.post("/api/login", (req, res) => {
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     return res.json({ token: SESSION_TOKEN });
   }
+   console.warn("Login failed", { ip: req.ip, user: username });
   res.status(401).json({ error: "Credenciales inválidas" });
 });
 
@@ -602,9 +681,17 @@ app.get("/api/app/config", async (req, res) => {
   try {
     const config = await requireApiKey(req, res);
     if (!config) return;
-    const appConfig = { ...config };
-    delete appConfig.ApiKey;
-    appConfig.ads = config.Ads || { BannerIds: [], InterstitialIds: [], RewardedIds: [], AppOpenIds: [] };
+    const servers = Array.isArray(config.Servers) ? config.Servers : [];
+    const networks = Array.isArray(config.Networks) ? config.Networks : [];
+    const ads = config.Ads || { BannerIds: [], InterstitialIds: [], RewardedIds: [], AppOpenIds: [] };
+    const appConfig = {
+      Version: config.Version || "",
+      ReleaseNotes: config.ReleaseNotes || "",
+      Servers: servers,
+      Networks: networks,
+      Ads: ads,
+      ads
+    };
     res.json(appConfig);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
