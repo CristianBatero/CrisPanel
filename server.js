@@ -460,6 +460,14 @@ async function requireApiKey(req, res) {
     res.status(403).json({ error: "Acceso denegado: API Key inválida" });
     return null;
   }
+  
+  // Ensure Ads structure exists
+  if (!config.Ads) config.Ads = {};
+  if (!Array.isArray(config.Ads.BannerIds)) config.Ads.BannerIds = [];
+  if (!Array.isArray(config.Ads.InterstitialIds)) config.Ads.InterstitialIds = [];
+  if (!Array.isArray(config.Ads.RewardedIds)) config.Ads.RewardedIds = [];
+  if (!Array.isArray(config.Ads.AppOpenIds)) config.Ads.AppOpenIds = [];
+  
   return config;
 }
 
@@ -551,6 +559,7 @@ app.get("/api/app/config", async (req, res) => {
     if (!config) return;
     const appConfig = { ...config };
     delete appConfig.ApiKey;
+    appConfig.ads = config.Ads || { BannerIds: [], InterstitialIds: [], RewardedIds: [], AppOpenIds: [] };
     res.json(appConfig);
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
