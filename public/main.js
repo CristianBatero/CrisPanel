@@ -128,6 +128,7 @@ function initNavigation() {
       if (target === "dashboard") loadDashboard();
       if (target === "servers") loadServers();
       if (target === "users") loadUsers();
+      if (target === "devices") loadDevices();
       if (target === "config") loadConfig();
       if (target === "ads") loadAds();
       if (target === "security") loadSecurity();
@@ -625,6 +626,32 @@ async function loadUsers() {
 
   } catch (err) {
     console.error("Load users error:", err);
+  }
+}
+
+async function loadDevices() {
+  try {
+    const devices = await apiRequest("/api/devices");
+    const tbody = $("devices-table-body");
+    if (!tbody) return;
+    tbody.innerHTML = "";
+    devices.forEach(d => {
+      const tr = document.createElement("tr");
+      const totalHours = typeof d.totalHours === "number" ? d.totalHours.toFixed(2) : "0.00";
+      const lastAd = d.lastAdAt ? new Date(d.lastAdAt).toLocaleString() : "Nunca";
+      const created = d.createdAt ? new Date(d.createdAt).toLocaleDateString() : "";
+      tr.innerHTML = `
+        <td>${d.deviceId}</td>
+        <td>${d.model || ""}</td>
+        <td>${d.appVersion || ""}</td>
+        <td>${totalHours}</td>
+        <td>${lastAd}</td>
+        <td>${created}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.error("Load devices error:", err);
   }
 }
 

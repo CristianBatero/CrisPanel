@@ -395,6 +395,34 @@ function mapServerToStorage(input) {
     return storage;
 }
 
+function mapDeviceForAdmin(device) {
+  const adSeconds = device.adSeconds || 0;
+  const totalHours = Math.round((adSeconds / 3600) * 100) / 100;
+  return {
+    id: device.id,
+    deviceId: device.deviceId,
+    model: device.model || "",
+    appVersion: device.appVersion || "",
+    adSeconds,
+    totalHours,
+    createdAt: device.createdAt || null,
+    lastSeen: device.lastSeen || null,
+    lastAdAt: device.lastAdAt || null,
+  };
+}
+
+function mapDeviceForApp(device) {
+  const adSeconds = device.adSeconds || 0;
+  const totalHours = Math.round((adSeconds / 3600) * 100) / 100;
+  return {
+    id: device.id,
+    deviceId: device.deviceId,
+    adSeconds,
+    totalHours,
+    lastAdAt: device.lastAdAt || null,
+  };
+}
+
 // --- Auth Middleware ---
 function authMiddleware(req, res, next) {
   const header = req.headers["authorization"] || "";
@@ -423,6 +451,16 @@ function jwtAuth(roles = []) {
       return res.status(401).json({ error: "Token inválido" });
     }
   };
+}
+
+async function requireApiKey(req, res) {
+  const { data: config } = await storage.read("config.json", {});
+  const requestKey = req.headers["x-api-key"] || req.query.key;
+  if (!config.ApiKey || requestKey !== config.ApiKey) {
+    res.status(403).json({ error: "Acceso denegado: API Key inválida" });
+    return null;
+  }
+  return config;
 }
 
 // --- Endpoints ---
@@ -509,15 +547,91 @@ app.put("/api/meta", authMiddleware, async (req, res) => {
 // App Config (Public w/ Key)
 app.get("/api/app/config", async (req, res) => {
   try {
-    const { data: config } = await storage.read("config.json", {});
-    const requestKey = req.headers["x-api-key"] || req.query.key;
-    if (!config.ApiKey || requestKey !== config.ApiKey) {
-      return res.status(403).json({ error: "Acceso denegado: API Key inválida" });
-    }
+    const config = await requireApiKey(req, res);
+    if (!config) return;
     const appConfig = { ...config };
     delete appConfig.ApiKey;
     res.json(appConfig);
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/app/device/register", async (req, res) => {
+  try {
+    const config = await requireApiKey(req, res);
+    if (!config) return;
+    const body = req.body || {};
+    const deviceId = body.deviceId;
+    if (!deviceId) return res.status(400).json({ error: "deviceId requerido" });
+    const result = await storage.read("devices.json", []);
+    const devices = Array.isArray(result.data) ? result.data : [];
+    const now = Date.now();
+    let device = devices.find(d => d.deviceId === deviceId);
+    if (!device) {
+      device = {
+        id: Date.now().toString(),
+        deviceId,
+        model: body.model || "",
+        appVersion: body.appVersion || "",
+        adSeconds: 0,
+        createdAt: now,
+        lastSeen: now,
+        lastAdAt: null,
+      };
+      devices.push(device);
+    } else {
+      if (body.model) device.model = body.model;
+      if (body.appVersion) device.appVersion = body.appVersion;
+      device.lastSeen = now;
+    }
+    await storage.write("devices.json", devices, result.sha);
+    res.json(mapDeviceForApp(device));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post("/api/app/device/reward", async (req, res) => {
+  try {
+    const config = await requireApiKey(req, res);
+    if (!config) return;
+    const body = req.body || {};
+    const deviceId = body.deviceId;
+    if (!deviceId) return res.status(400).json({ error: "deviceId requerido" });
+    const adsCountRaw = body.adsCount != null ? body.adsCount : 1;
+    const count = Number(adsCountRaw) || 1;
+    const hoursPerAd = 2;
+    const addedSeconds = count * hoursPerAd * 3600;
+    const result = await storage.read("devices.json", []);
+    const devices = Array.isArray(result.data) ? result.data : [];
+    const now = Date.now();
+    let device = devices.find(d => d.deviceId === deviceId);
+    if (!device) {
+      device = {
+        id: Date.now().toString(),
+        deviceId,
+        model: body.model || "",
+        appVersion: body.appVersion || "",
+        adSeconds: 0,
+        createdAt: now,
+        lastSeen: now,
+        lastAdAt: null,
+      };
+      devices.push(device);
+    }
+    const current = device.adSeconds || 0;
+    device.adSeconds = current + addedSeconds;
+    device.lastSeen = now;
+    device.lastAdAt = now;
+    await storage.write("devices.json", devices, result.sha);
+    const summary = mapDeviceForApp(device);
+    res.json({
+      ...summary,
+      addedSeconds,
+      addedHours: addedSeconds / 3600,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // Servers
@@ -584,6 +698,16 @@ app.get("/api/users", authMiddleware, async (req, res) => {
     const { data: users } = await storage.read("users.json", []);
     res.json(users.map(u => ({ ...u, password: undefined })));
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/devices", authMiddleware, async (req, res) => {
+  try {
+    const result = await storage.read("devices.json", []);
+    const devices = Array.isArray(result.data) ? result.data : [];
+    res.json(devices.map(mapDeviceForAdmin));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post("/api/users", authMiddleware, async (req, res) => {

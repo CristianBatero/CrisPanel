@@ -55,6 +55,9 @@
           <button class="nav-item" data-target="users">
             <i class="fa-solid fa-users"></i> Usuarios
           </button>
+          <button class="nav-item" data-target="devices">
+            <i class="fa-solid fa-mobile-screen-button"></i> Dispositivos
+          </button>
           <button class="nav-item" data-target="config">
             <i class="fa-solid fa-gear"></i> Configuración
           </button>
@@ -339,6 +342,28 @@
                 </tr>
               </thead>
               <tbody id="users-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="view-devices" class="view-section hidden">
+          <div class="card">
+            <div class="section-header">
+              <h3>Dispositivos (Tiempo por anuncios)</h3>
+            </div>
+            <p class="text-muted" style="margin-bottom: 0.75rem;">Aquí se registran los celulares únicos y el tiempo acumulado por anuncios.</p>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Device ID</th>
+                  <th>Modelo</th>
+                  <th>Versión App</th>
+                  <th>Horas por anuncios</th>
+                  <th>Último anuncio</th>
+                  <th>Registrado</th>
+                </tr>
+              </thead>
+              <tbody id="devices-table-body"></tbody>
             </table>
           </div>
         </div>
