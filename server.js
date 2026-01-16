@@ -617,13 +617,34 @@ app.post("/api/firebase/setup", authMiddleware, upload.single("file"), async (re
 });
 
 // Login Simple
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: "Faltan credenciales" });
+  }
+
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     return res.json({ token: SESSION_TOKEN });
   }
-   console.warn("Login failed", { ip: req.ip, user: username });
-  res.status(401).json({ error: "Credenciales inválidas" });
+
+  try {
+    const result = await storage.read("users.json", []);
+    const users = result.data || [];
+    const found = users.find(
+      (u) =>
+        u.username === username &&
+        verifyPassword(password, u.password) &&
+        (u.status === undefined || u.status === "active")
+    );
+    if (found) {
+      return res.json({ token: SESSION_TOKEN });
+    }
+    console.warn("Login failed", { ip: req.ip, user: username });
+    return res.status(401).json({ error: "Credenciales inválidas" });
+  } catch (e) {
+    console.error("Login error", e.message);
+    return res.status(500).json({ error: "Error en el servidor" });
+  }
 });
 
 // Admin Auth (Users)
@@ -796,6 +817,47 @@ app.post("/api/servers", authMiddleware, async (req, res) => {
     await storage.write("config.json", config, sha);
     const index = config.Servers.length - 1;
     res.status(201).json(mapServerFromStorage(storageServer, index));
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/servers/reorder", authMiddleware, async (req, res) => {
+  try {
+    const { data: config, sha } = await storage.read("config.json", {});
+    const servers = Array.isArray(config.Servers) ? config.Servers : [];
+    const { newOrder } = req.body; // Array of IDs (indices as strings)
+    
+    if (!Array.isArray(newOrder)) {
+      return res.status(400).json({ error: "Formato de orden inválido" });
+    }
+
+    // Create a map of current servers by their original index (ID)
+    // We need to be careful because IDs are just indices in string format
+    // A better approach for robust reordering with indices as IDs:
+    
+    const reordered = [];
+    const usedIndices = new Set();
+
+    // 1. Add servers specified in newOrder
+    for (const idStr of newOrder) {
+      const index = parseInt(idStr, 10);
+      if (!Number.isNaN(index) && index >= 0 && index < servers.length) {
+        reordered.push(servers[index]);
+        usedIndices.add(index);
+      }
+    }
+
+    // 2. Append any servers NOT in newOrder (to avoid losing data if UI is out of sync)
+    for (let i = 0; i < servers.length; i++) {
+      if (!usedIndices.has(i)) {
+        reordered.push(servers[i]);
+      }
+    }
+
+    config.Servers = reordered;
+    await storage.write("config.json", config, sha);
+    
+    // Return mapped servers with NEW indices/IDs
+    res.json(config.Servers.map((s, idx) => mapServerFromStorage(s, idx)));
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
